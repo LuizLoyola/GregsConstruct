@@ -1,14 +1,17 @@
 buildscript {
     repositories {
-        jcenter()
-        maven { url = "http://files.minecraftforge.net/maven" }
+        mavenCentral()
+        maven {
+            name = "jitpack"
+            url = "https://jitpack.io/"
+        }
+        maven { url = "https://maven.minecraftforge.net/" }
     }
     dependencies {
         classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
     }
 }
 apply plugin: 'net.minecraftforge.gradle.forge'
-
 
 version = "${minecraft_version}-${mod_version}"
 group = "gregsconstruct"
@@ -24,22 +27,23 @@ minecraft {
     runDir = "run"
     mappings = "snapshot_20171003"
 
-    replace("@VERSION@",project.version)
+    replace("@VERSION@", project.version)
     replaceIn("GregsConstruct.java")
 }
 
 repositories {
+    mavenCentral()
     maven {
         name = "ChickenBones maven"
-        url = "http://chickenbones.net/maven/"
+        url = "https://chickenbones.net/maven/"
     }
     maven {
         name = "tterrag maven"
-        url = "http://maven.tterrag.com/"
+        url = "https://maven.tterrag.com/"
     }
     maven {
         name = "Progwml6 maven"
-        url = "http://dvs1.progwml6.com/files/maven/"
+        url = "https://dvs1.progwml6.com/files/maven/"
     }
     maven {
         name = "CraftTweaker Maven"
@@ -56,7 +60,18 @@ dependencies {
     deobfCompile "slimeknights.mantle:Mantle:${short_version}-${mantle_version}"
     deobfCompile "slimeknights:TConstruct:${minecraft_version}-${tconstruct_version}"
     compile files("libs/gregtech-${minecraft_version}-${gt_version}.jar")
+    compile files("libs/gregtech-${minecraft_version}-${gt_version}-energy-api.jar")
+    compile files("libs/gregtech-${minecraft_version}-${gt_version}-sources.jar")
 }
+
+task checkDependencies() {
+    doLast {
+        configurations.compile.each { file ->
+            assert file.exists()
+        }
+    }
+}
+
 
 processResources {
     inputs.property "version", project.version
@@ -64,10 +79,10 @@ processResources {
 
     from(sourceSets.main.resources.srcDirs) {
         include 'mcmod.info'
-                
-        expand 'version':project.version, 'mcversion':project.minecraft.version
+
+        expand 'version': project.version, 'mcversion': project.minecraft.version
     }
-        
+
     from(sourceSets.main.resources.srcDirs) {
         exclude 'mcmod.info'
     }
