@@ -5,6 +5,9 @@ import gregtech.api.unification.material.type.*;
 import gregtech.api.unification.ore.OrePrefix;
 import gregtech.api.unification.stack.UnificationEntry;
 import net.minecraft.init.Items;
+import net.minecraftforge.fml.common.ModContainer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import slimeknights.tconstruct.common.config.Config;
 import slimeknights.tconstruct.library.TinkerRegistry;
 import slimeknights.tconstruct.library.materials.ExtraMaterialStats;
@@ -13,20 +16,22 @@ import slimeknights.tconstruct.library.materials.HeadMaterialStats;
 
 import java.util.ArrayList;
 
-public class Materials {
-    private static ArrayList<slimeknights.tconstruct.library.materials.Material> ingotMaterials = new ArrayList<>();
-    private static ArrayList<IngotMaterial> GtIngotmaterials = new ArrayList<>();
+import static gregtech.api.unification.material.Materials.*;
 
-    private static ArrayList<slimeknights.tconstruct.library.materials.Material> gemMaterials = new ArrayList<>();
-    private static ArrayList<GemMaterial> GtGemmaterials = new ArrayList<>();
+public class Materials {
+    public static Logger logger = LogManager.getLogger(GregsConstruct.MODID);
+    private static final ArrayList<slimeknights.tconstruct.library.materials.Material> ingotMaterials = new ArrayList<>();
+    private static final ArrayList<IngotMaterial> GtIngotMaterials = new ArrayList<>();
+    private static final ArrayList<slimeknights.tconstruct.library.materials.Material> gemMaterials = new ArrayList<>();
+    private static final ArrayList<GemMaterial> GtGemMaterials = new ArrayList<>();
 
     public static void preInit() {
         for (Material mat : Material.MATERIAL_REGISTRY) {
             if (mat instanceof IngotMaterial) {
-                if (mat != gregtech.api.unification.material.Materials.Iron && mat != gregtech.api.unification.material.Materials.Cobalt && mat != gregtech.api.unification.material.Materials.Copper && mat != gregtech.api.unification.material.Materials.Bronze && mat != gregtech.api.unification.material.Materials.Lead && mat != gregtech.api.unification.material.Materials.Electrum && mat != gregtech.api.unification.material.Materials.Silver && mat != gregtech.api.unification.material.Materials.Steel && mat != gregtech.api.unification.material.Materials.PigIron) {
+                if (mat != Iron && mat != Cobalt && mat != Copper && mat != Bronze && mat != Lead && mat != Electrum && mat != Silver && mat != Steel && mat != PigIron) {
                     if (((SolidMaterial) mat).toolDurability > 0) {
                         ingotMaterials.add(new slimeknights.tconstruct.library.materials.Material(mat.toString(), mat.materialRGB).setCastable(true).setCraftable(false));
-                        GtIngotmaterials.add((IngotMaterial) mat);
+                        GtIngotMaterials.add((IngotMaterial) mat);
                     } else
                         TinkerRegistry.integrate(((IngotMaterial) mat).getMaterialFluid(), upperCase(mat));
                 }
@@ -43,7 +48,7 @@ public class Materials {
             }
             if (mat instanceof GemMaterial && ((GemMaterial) mat).toolDurability > 0) {
                 gemMaterials.add(new slimeknights.tconstruct.library.materials.Material(mat.toString(), mat.materialRGB).setCastable(false).setCraftable(true));
-                GtGemmaterials.add((GemMaterial) mat);
+                GtGemMaterials.add((GemMaterial) mat);
             }
             if (mat instanceof DustMaterial && !(mat instanceof IngotMaterial)) {
                 DustMaterial dust = (DustMaterial) mat;
@@ -57,7 +62,7 @@ public class Materials {
                     TinkerRegistry.registerMelting(new UnificationEntry(OrePrefix.oreEndstone, mat).toString(), dust.directSmelting.getMaterialFluid(), (int) (144 * dust.oreMultiplier * Config.oreToIngotRatio));
                     TinkerRegistry.registerMelting(new UnificationEntry(OrePrefix.oreBlackgranite, mat).toString(), dust.directSmelting.getMaterialFluid(), (int) (144 * dust.oreMultiplier * Config.oreToIngotRatio));
                     TinkerRegistry.registerMelting(new UnificationEntry(OrePrefix.oreBasalt, mat).toString(), dust.directSmelting.getMaterialFluid(), (int) (144 * dust.oreMultiplier * Config.oreToIngotRatio));
-                } else if (dust.hasFlag(DustMaterial.MatFlags.SMELT_INTO_FLUID) && mat != gregtech.api.unification.material.Materials.Glass && mat != gregtech.api.unification.material.Materials.Ice) {
+                } else if (dust.hasFlag(DustMaterial.MatFlags.SMELT_INTO_FLUID) && mat != Glass && mat != Ice) {
                     TinkerRegistry.registerMelting(new UnificationEntry(OrePrefix.dust, mat).toString(), dust.getMaterialFluid(), 144);
                     TinkerRegistry.registerMelting(new UnificationEntry(OrePrefix.dustSmall, mat).toString(), dust.getMaterialFluid(), 36);
                     TinkerRegistry.registerMelting(new UnificationEntry(OrePrefix.dustTiny, mat).toString(), dust.getMaterialFluid(), 16);
@@ -65,104 +70,72 @@ public class Materials {
             }
         }
 
-        for (
-                int i = 0; i < ingotMaterials.size(); i++)
-
-        {
+        for (int i = 0; i < ingotMaterials.size(); i++) {
             slimeknights.tconstruct.library.materials.Material mat = ingotMaterials.get(i);
-            IngotMaterial GtMat = GtIngotmaterials.get(i);
+            logger.debug("Registering " + mat.identifier + " as a material ingot");
+
+            if (TinkerRegistry.getMaterial(mat.identifier) != slimeknights.tconstruct.library.materials.Material.UNKNOWN) {
+                // warn
+                ModContainer registeredBy = TinkerRegistry.getTrace(mat);
+                logger.warn(String.format("Skipping ingot material \"%s\": It was already registered by %s", mat.identifier, registeredBy.getName()));
+                continue;
+            }
+
+            IngotMaterial GtMat = GtIngotMaterials.get(i);
             mat.addCommonItems(upperCase(GtMat));
             mat.setFluid(GtMat.getMaterialFluid());
             mat.addItemIngot(new UnificationEntry(OrePrefix.ingot, GtMat).toString());
             mat.setRepresentativeItem(OreDictUnifier.get(OrePrefix.ingot, GtMat));
             TinkerRegistry.addMaterial(mat);
-            TinkerRegistry.addMaterialStats(mat,
-                    new HeadMaterialStats((int) (GtMat.toolDurability * 0.8), GtMat.toolSpeed, GtMat.toolAttackDamage, GtMat.harvestLevel),
-                    new HandleMaterialStats((GtMat.harvestLevel - 0.5f) / 2, GtMat.toolDurability / 3),
-                    new ExtraMaterialStats(GtMat.toolDurability / 4));
+            TinkerRegistry.addMaterialStats(mat, new HeadMaterialStats((int) (GtMat.toolDurability * 0.8), GtMat.toolSpeed, GtMat.toolAttackDamage, GtMat.harvestLevel), new HandleMaterialStats((GtMat.harvestLevel - 0.5f) / 2, GtMat.toolDurability / 3), new ExtraMaterialStats(GtMat.toolDurability / 4));
             TinkerRegistry.integrate(mat, mat.getFluid(), upperCase(GtMat));
+            logger.debug("Registered " + mat.identifier);
         }
 
 
-        for (
-                int i = 0; i < gemMaterials.size(); i++)
+        for (int i = 0; i < gemMaterials.size(); i++) {
 
-        {
             slimeknights.tconstruct.library.materials.Material mat = gemMaterials.get(i);
-            GemMaterial GtMat = GtGemmaterials.get(i);
+
+            logger.debug("Registering " + mat.identifier + " as a material gem");
+
+            if (TinkerRegistry.getMaterial(mat.identifier) != slimeknights.tconstruct.library.materials.Material.UNKNOWN) {
+                // warn
+                ModContainer registeredBy = TinkerRegistry.getTrace(mat);
+                logger.warn(String.format("Skipping gem material \"%s\": It was already registered by %s", mat.identifier, registeredBy.getName()));
+                continue;
+            }
+
+            GemMaterial GtMat = GtGemMaterials.get(i);
             mat.addCommonItems(upperCase(GtMat));
             mat.addItemIngot(new UnificationEntry(OrePrefix.gem, GtMat).toString());
             mat.setRepresentativeItem(OreDictUnifier.get(OrePrefix.gem, GtMat));
             TinkerRegistry.addMaterial(mat);
-            TinkerRegistry.addMaterialStats(mat,
-                    new HeadMaterialStats(GtMat.toolDurability, GtMat.toolSpeed, GtMat.toolAttackDamage, GtMat.harvestLevel),
-                    new HandleMaterialStats(GtMat.harvestLevel - 0.5f, GtMat.toolDurability / 4),
-                    new ExtraMaterialStats(GtMat.toolDurability / 100));
+            TinkerRegistry.addMaterialStats(mat, new HeadMaterialStats(GtMat.toolDurability, GtMat.toolSpeed, GtMat.toolAttackDamage, GtMat.harvestLevel), new HandleMaterialStats(GtMat.harvestLevel - 0.5f, GtMat.toolDurability / 4), new ExtraMaterialStats(GtMat.toolDurability / 100));
             TinkerRegistry.integrate(mat, upperCase(GtMat));
+            logger.debug("Registered " + mat.identifier);
         }
 
-        TinkerRegistry.registerAlloy(gregtech.api.unification.material.Materials.Brass.getFluid(4),
-                gregtech.api.unification.material.Materials.Copper.getFluid(3),
-                gregtech.api.unification.material.Materials.Zinc.getFluid(1));
+        TinkerRegistry.registerAlloy(Brass.getFluid(4), Copper.getFluid(3), Zinc.getFluid(1));
+        TinkerRegistry.registerAlloy(Cupronickel.getFluid(2), Copper.getFluid(1), Nickel.getFluid(1));
+        TinkerRegistry.registerAlloy(RedAlloy.getFluid(1), Copper.getFluid(1), Redstone.getFluid(4));
+        TinkerRegistry.registerAlloy(Brass.getFluid(4), AnnealedCopper.getFluid(3), Zinc.getFluid(1));
+        TinkerRegistry.registerAlloy(Cupronickel.getFluid(2), AnnealedCopper.getFluid(1), Nickel.getFluid(1));
+        TinkerRegistry.registerAlloy(RedAlloy.getFluid(1), AnnealedCopper.getFluid(1), Redstone.getFluid(4));
+        TinkerRegistry.registerAlloy(TinAlloy.getFluid(2), Iron.getFluid(1), Tin.getFluid(1));
+        TinkerRegistry.registerAlloy(Invar.getFluid(3), Iron.getFluid(1), Nickel.getFluid(1));
+        TinkerRegistry.registerAlloy(TinAlloy.getFluid(2), WroughtIron.getFluid(1), Tin.getFluid(1));
+        TinkerRegistry.registerAlloy(Invar.getFluid(3), WroughtIron.getFluid(1), Nickel.getFluid(1));
+        TinkerRegistry.registerAlloy(BatteryAlloy.getFluid(5), Lead.getFluid(4), Antimony.getFluid(1));
+        TinkerRegistry.registerAlloy(SolderingAlloy.getFluid(10), Tin.getFluid(9), Antimony.getFluid(1));
+        TinkerRegistry.registerAlloy(Magnalium.getFluid(3), Aluminium.getFluid(2), Magnesium.getFluid(1));
+        TinkerRegistry.registerAlloy(CobaltBrass.getFluid(9), Brass.getFluid(7), Aluminium.getFluid(1), Sodium.getFluid(1));
 
-        TinkerRegistry.registerAlloy(gregtech.api.unification.material.Materials.Cupronickel.getFluid(2),
-                gregtech.api.unification.material.Materials.Copper.getFluid(1),
-                gregtech.api.unification.material.Materials.Nickel.getFluid(1));
-
-        TinkerRegistry.registerAlloy(gregtech.api.unification.material.Materials.RedAlloy.getFluid(1),
-                gregtech.api.unification.material.Materials.Copper.getFluid(1),
-                gregtech.api.unification.material.Materials.Redstone.getFluid(4));
-
-        TinkerRegistry.registerAlloy(gregtech.api.unification.material.Materials.Brass.getFluid(4),
-                gregtech.api.unification.material.Materials.AnnealedCopper.getFluid(3),
-                gregtech.api.unification.material.Materials.Zinc.getFluid(1));
-
-        TinkerRegistry.registerAlloy(gregtech.api.unification.material.Materials.Cupronickel.getFluid(2),
-                gregtech.api.unification.material.Materials.AnnealedCopper.getFluid(1),
-                gregtech.api.unification.material.Materials.Nickel.getFluid(1));
-
-        TinkerRegistry.registerAlloy(gregtech.api.unification.material.Materials.RedAlloy.getFluid(1),
-                gregtech.api.unification.material.Materials.AnnealedCopper.getFluid(1),
-                gregtech.api.unification.material.Materials.Redstone.getFluid(4));
-
-        TinkerRegistry.registerAlloy(gregtech.api.unification.material.Materials.TinAlloy.getFluid(2),
-                gregtech.api.unification.material.Materials.Iron.getFluid(1),
-                gregtech.api.unification.material.Materials.Tin.getFluid(1));
-
-        TinkerRegistry.registerAlloy(gregtech.api.unification.material.Materials.Invar.getFluid(3),
-                gregtech.api.unification.material.Materials.Iron.getFluid(1),
-                gregtech.api.unification.material.Materials.Nickel.getFluid(1));
-
-        TinkerRegistry.registerAlloy(gregtech.api.unification.material.Materials.TinAlloy.getFluid(2),
-                gregtech.api.unification.material.Materials.WroughtIron.getFluid(1),
-                gregtech.api.unification.material.Materials.Tin.getFluid(1));
-
-        TinkerRegistry.registerAlloy(gregtech.api.unification.material.Materials.Invar.getFluid(3),
-                gregtech.api.unification.material.Materials.WroughtIron.getFluid(1),
-                gregtech.api.unification.material.Materials.Nickel.getFluid(1));
-
-        TinkerRegistry.registerAlloy(gregtech.api.unification.material.Materials.BatteryAlloy.getFluid(5),
-                gregtech.api.unification.material.Materials.Lead.getFluid(4),
-                gregtech.api.unification.material.Materials.Antimony.getFluid(1));
-
-        TinkerRegistry.registerAlloy(gregtech.api.unification.material.Materials.SolderingAlloy.getFluid(10),
-                gregtech.api.unification.material.Materials.Tin.getFluid(9),
-                gregtech.api.unification.material.Materials.Antimony.getFluid(1));
-
-        TinkerRegistry.registerAlloy(gregtech.api.unification.material.Materials.Magnalium.getFluid(3),
-                gregtech.api.unification.material.Materials.Aluminium.getFluid(2),
-                gregtech.api.unification.material.Materials.Magnesium.getFluid(1));
-
-        TinkerRegistry.registerAlloy(gregtech.api.unification.material.Materials.CobaltBrass.getFluid(9),
-                gregtech.api.unification.material.Materials.Brass.getFluid(7),
-                gregtech.api.unification.material.Materials.Aluminium.getFluid(1),
-                gregtech.api.unification.material.Materials.Sodium.getFluid(1));
-
-        TinkerRegistry.registerMelting("dustGlass", gregtech.api.unification.material.Materials.Glass.getMaterialFluid(), 1000);
-        TinkerRegistry.registerMelting("dustQuartzite", gregtech.api.unification.material.Materials.Glass.getMaterialFluid(), 1000);
-        TinkerRegistry.registerMelting("plateGlass", gregtech.api.unification.material.Materials.Glass.getMaterialFluid(), 1000);
-        TinkerRegistry.registerMelting(Items.GLASS_BOTTLE, gregtech.api.unification.material.Materials.Glass.getMaterialFluid(), 1000);
-        TinkerRegistry.registerMelting("gemGlass", gregtech.api.unification.material.Materials.Glass.getMaterialFluid(), 1000);
+        TinkerRegistry.registerMelting("dustGlass", Glass.getMaterialFluid(), 1000);
+        TinkerRegistry.registerMelting("dustQuartzite", Glass.getMaterialFluid(), 1000);
+        TinkerRegistry.registerMelting("plateGlass", Glass.getMaterialFluid(), 1000);
+        TinkerRegistry.registerMelting(Items.GLASS_BOTTLE, Glass.getMaterialFluid(), 1000);
+        TinkerRegistry.registerMelting("gemGlass", Glass.getMaterialFluid(), 1000);
     }
 
     private static String upperCase(Material mat) {
